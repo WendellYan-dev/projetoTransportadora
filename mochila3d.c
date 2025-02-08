@@ -11,16 +11,19 @@ int max(int a,int b){
 }
 
 
-int maxMochila(int it,int W,int itens[][2]){
-    static int **matriz = NULL;
+int maxMochila(int it,int W,int V,int itens[][2]){
+    static int ***matriz = NULL;
 
     // Aloca memória apenas na primeira chamada,ou seja,quando ela for NULL
     if (matriz == NULL) {
         //construção das linhas da matriz com a quantidade de itens +1,pois a primeira linha da matriz vai ser manter 0,pois não existe item 0
-        matriz = (int **)malloc((it + 1) * sizeof(int *));
+        matriz = (int ***)malloc((it + 1) * sizeof(int **));
         for (int i = 0; i <= it; i++) {
             //o mesmo é feito com as colunas,pois a primeira coluna da matriz vai ser manter 0,já que não existe item com peso 0
-            matriz[i] = (int *)malloc((W + 1) * sizeof(int));
+            matriz[i] = (int **)malloc((W + 1) * sizeof(int *));
+            for (int j = 0; j <= W; j++) {
+                matriz[i][j] = (int *)malloc((V+1) * sizeof(int));
+            }    
         }
     }
 
@@ -57,14 +60,16 @@ int maxMochila(int it,int W,int itens[][2]){
 
 int main(){
 
+    int V = 20;
     int W = 5;
-    int itens[][2] = {
+    int itens[][3] = {
         //coluna 1: valor dos itens
         //coluna 2: peso dos itens
-        {12,2},
-        {10,1},
-        {20,3},
-        {15,2}
+        //coluna 3: volume dos itens
+        {12,2,12},
+        {10,1,6},
+        {20,3,14},
+        {15,2,8}
     };
     int it = sizeof(itens) / sizeof(itens[0]);
     int mochila = maxMochila(it,W,itens);
