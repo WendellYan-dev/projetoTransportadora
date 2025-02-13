@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // Estrutura para representar um pacote
 typedef struct {
@@ -19,15 +20,6 @@ typedef struct {
     int V;
 } Veiculo;
 
-
-int max(int a,int b){
-    if(a>b){
-        return a;
-    } else {
-        return b;
-    }
-}
-
 // Função de comparação para ordenar por índice original
 int comparar_por_indice_original(const void *a, const void *b) {
     Pacote *p1 = (Pacote *)a;
@@ -35,38 +27,35 @@ int comparar_por_indice_original(const void *a, const void *b) {
     return p1->indice_original - p2->indice_original;
 }
 
+// Função para encontrar a melhor combinação de pacotes usando programação dinâmica
 void otimizacaoVeiculos(Pacote *pacotes, int m, int W, int V, Pacote *selecionados, int *count, float *valorTotal) {
-    float **matriz_atual = (float **)malloc((W + 1) * sizeof(float *));
-    float **matriz_anterior = (float **)malloc((W + 1) * sizeof(float *));
-    for (int w = 0; w <= W; w++) {
-        matriz_atual[w] = (float *)malloc((V + 1) * sizeof(float));
-        matriz_anterior[w] = (float *)malloc((V + 1) * sizeof(float));
-        memset(matriz_atual[w], 0, (V + 1) * sizeof(float));
-        memset(matriz_anterior[w], 0, (V + 1) * sizeof(float));
+    float ***matriz = (float ***)malloc((m + 1) * sizeof(float **));
+    for (int i = 0; i <= m; i++) {
+        matriz[i] = (float **)malloc((W + 1) * sizeof(float *));
+        for (int w = 0; w <= W; w++) {
+            matriz[i][w] = (float *)malloc((V + 1) * sizeof(float));
+            memset(matriz[i][w], 0, (V + 1) * sizeof(float));
+        }
     }
 
     for (int i = 1; i <= m; i++) {
         Pacote pacote = pacotes[i - 1];
         for (int w = 0; w <= W; w++) {
             for (int v = 0; v <= V; v++) {
-                if (w < pacote.peso || v < pacote.volume || pacote.alocado) {
-                    matriz_atual[w][v] = matriz_anterior[w][v];
+                if (w >= pacote.peso && v >= pacote.volume && !pacote.alocado) {
+                    matriz[i][w][v] = fmax(matriz[i - 1][w][v], matriz[i - 1][w - pacote.peso][v - pacote.volume] + pacote.valor);
                 } else {
-                    matriz_atual[w][v] = max(matriz_anterior[w][v], matriz_anterior[w - pacote.peso][v - pacote.volume] + pacote.valor);
+                    matriz[i][w][v] = matriz[i - 1][w][v];
                 }
             }
         }
-        // Troca as matrizes
-        float **temp = matriz_anterior;
-        matriz_anterior = matriz_atual;
-        matriz_atual = temp;
     }
 
-    *valorTotal = matriz_anterior[W][V];
+    *valorTotal = matriz[m][W][V];
     *count = 0;
     int w = W, v = V;
     for (int i = m; i > 0 && w > 0 && v > 0; i--) {
-        if (matriz_anterior[w][v] != matriz_anterior[w][v - 1] || matriz_anterior[w][v] != matriz_anterior[w - 1][v]) {
+        if (matriz[i][w][v] != matriz[i - 1][w][v]) {
             selecionados[(*count)++] = pacotes[i - 1];
             pacotes[i - 1].alocado = 1;
             w -= pacotes[i - 1].peso;
@@ -74,12 +63,13 @@ void otimizacaoVeiculos(Pacote *pacotes, int m, int W, int V, Pacote *selecionad
         }
     }
 
-    for (int w = 0; w <= W; w++) {
-        free(matriz_atual[w]);
-        free(matriz_anterior[w]);
+    for (int i = 0; i <= m; i++) {
+        for (int w = 0; w <= W; w++) {
+            free(matriz[i][w]);
+        }
+        free(matriz[i]);
     }
-    free(matriz_atual);
-    free(matriz_anterior);
+    free(matriz);
 }
 
 // Função para imprimir pacotes não alocados
@@ -133,13 +123,12 @@ int main(int argc, char *argv[]) {
 
         qsort(pacotes_selecionados, count_selecionados, sizeof(Pacote), comparar_por_indice_original);
 
-        char pacotes_alocados[100000] = ""; // Ajuste o tamanho se necessário
+        fprintf(saida, "[%s]R$%.2f,%dKG,%dL->", veiculos[i].placa, valor_total, veiculos[i].W, veiculos[i].V);
         for (int k = 0; k < count_selecionados; k++) {
-            if (k > 0) strcat(pacotes_alocados, ",");
-            strcat(pacotes_alocados, pacotes_selecionados[k].codigo);
+            if (k > 0) fprintf(saida, ",");
+            fprintf(saida, "%s", pacotes_selecionados[k].codigo);
         }
-        
-        fprintf(saida, "[%s]R$%.2f,%dKG,%dL->%s\n", veiculos[i].placa, valor_total, veiculos[i].W, veiculos[i].V, pacotes_alocados);
+        fprintf(saida, "\n");
     }
     
     imprimir_pendentes(pacotes, m, saida);
