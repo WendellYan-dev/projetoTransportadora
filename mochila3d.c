@@ -86,7 +86,7 @@ int main(){
 
     int V = 20;
     int W = 5;
-    int itens[][3] = {
+    int itens[4][3] = {
         //coluna 1: valor dos itens
         //coluna 2: peso dos itens
         //coluna 3: volume dos itens

@@ -35,51 +35,55 @@ int comparar_por_indice_original(const void *a, const void *b) {
     return p1->indice_original - p2->indice_original;
 }
 
+// Função para encontrar a melhor combinação de pacotes usando programação dinâmica
 void otimizacaoVeiculos(Pacote *pacotes, int m, int W, int V, Pacote *selecionados, int *count, float *valorTotal) {
-    float **matriz_atual = (float **)malloc((W + 1) * sizeof(float *));
-    float **matriz_anterior = (float **)malloc((W + 1) * sizeof(float *));
-    for (int w = 0; w <= W; w++) {
-        matriz_atual[w] = (float *)malloc((V + 1) * sizeof(float));
-        matriz_anterior[w] = (float *)malloc((V + 1) * sizeof(float));
-        memset(matriz_atual[w], 0, (V + 1) * sizeof(float));
-        memset(matriz_anterior[w], 0, (V + 1) * sizeof(float));
+    // Alocação da matriz DP
+    float ***matriz = (float ***)malloc((m + 1) * sizeof(float **));
+    for (int i = 0; i <= m; i++) {
+        matriz[i] = (float **)malloc((W + 1) * sizeof(float *));
+        for (int w = 0; w <= W; w++) {
+            matriz[i][w] = (float *)malloc((V + 1)* sizeof(float));
+        }
     }
 
-    for (int i = 1; i <= m; i++) {
-        Pacote pacote = pacotes[i - 1];
+    for (int i = 0; i <= m; i++) {
+        Pacote pacote = pacotes[i];
         for (int w = 0; w <= W; w++) {
             for (int v = 0; v <= V; v++) {
-                if (w < pacote.peso || v < pacote.volume || pacote.alocado) {
-                    matriz_atual[w][v] = matriz_anterior[w][v];
+                if (i == 0 || w == 0 || v == 0) {
+                    matriz[i][w][v] = 0;  
+                } else if (w < pacote.peso || v < pacote.volume || pacote.alocado) {
+                    matriz[i][w][v] = matriz[i - 1][w][v];  
                 } else {
-                    matriz_atual[w][v] = max(matriz_anterior[w][v], matriz_anterior[w - pacote.peso][v - pacote.volume] + pacote.valor);
+                    matriz[i][w][v] = max(matriz[i - 1][w][v],matriz[i - 1][w - pacote.peso][v - pacote.volume] + pacote.valor);
                 }
             }
         }
-        // Troca as matrizes
-        float **temp = matriz_anterior;
-        matriz_anterior = matriz_atual;
-        matriz_atual = temp;
     }
 
-    *valorTotal = matriz_anterior[W][V];
+    
+
+    //Vai guargar o valor float(preço) mais eficiente
+    *valorTotal = matriz[m][W][V];
     *count = 0;
     int w = W, v = V;
-    for (int i = m; i > 0 && w > 0 && v > 0; i--) {
-        if (matriz_anterior[w][v] != matriz_anterior[w][v - 1] || matriz_anterior[w][v] != matriz_anterior[w - 1][v]) {
-            selecionados[(*count)++] = pacotes[i - 1];
-            pacotes[i - 1].alocado = 1;
-            w -= pacotes[i - 1].peso;
-            v -= pacotes[i - 1].volume;
+    for (int i = m;i > 0 && w > 0 && v > 0;i--) {
+        if (matriz[i][w][v] != matriz[i - 1][w][v]) {
+            selecionados[(*count)++] = pacotes[i];
+            pacotes[i].alocado = 1; // Marca o pacote como alocado
+            w -= pacotes[i].peso;
+            v -= pacotes[i].volume;
         }
     }
 
-    for (int w = 0; w <= W; w++) {
-        free(matriz_atual[w]);
-        free(matriz_anterior[w]);
+    // Liberação da memória da matriz DP
+    for (int i = 0; i <= m; i++) {
+        for (int w = 0; w <= W; w++) {
+            free(matriz[i][w]);
+        }
+        free(matriz[i]);
     }
-    free(matriz_atual);
-    free(matriz_anterior);
+    free(matriz);
 }
 
 // Função para imprimir pacotes não alocados
