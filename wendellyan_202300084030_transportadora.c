@@ -47,9 +47,7 @@ void selecionarMelhoresPacotes(Veiculo* veiculo, Pacote *pacotes, int numPacotes
     for (int i = 0; i <= numPacotes; i++) {
         matriz[i] = (float **)malloc((pesoMax + 1)* sizeof(float *));
         if (matriz[i] == NULL) {
-            for (int j = 0; j < i; j++) {
-                free(matriz[j]);
-            }
+            printf("ERRO"); 
         }
         for (int w = 0; w <= pesoMax; w++) {
             matriz[i][w] = &alocacao[(i* (pesoMax + 1)*(volumeMax + 1))+(w * (volumeMax + 1))];
