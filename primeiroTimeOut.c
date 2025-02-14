@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // Estrutura para representar um pacote
 typedef struct {
@@ -8,83 +9,72 @@ typedef struct {
     float valor;
     int peso;
     int volume;
-    int indice_original;
+    int indiceOriginal;
     int alocado; // Indica se o pacote já foi alocado
 } Pacote;
 
 // Estrutura para representar um veículo
 typedef struct {
     char placa[8];
-    int W;
-    int V;
+    int pesoMax;
+    int volumeMax;
 } Veiculo;
-
-
-int max(int a,int b){
-    if(a>b){
-        return a;
-    } else {
-        return b;
-    }
-}
 
 // Função de comparação para ordenar por índice original
 int comparar_por_indice_original(const void *a, const void *b) {
     Pacote *p1 = (Pacote *)a;
     Pacote *p2 = (Pacote *)b;
-    return p1->indice_original - p2->indice_original;
+    return p1->indiceOriginal - p2->indiceOriginal;
 }
 
 // Função para encontrar a melhor combinação de pacotes usando programação dinâmica
-void otimizacaoVeiculos(Pacote *pacotes, int m, int W, int V, Pacote *selecionados, int *count, float *valorTotal) {
+void mochila_3d(Pacote *pacotes, int m, int pesoMax, int volumeMax, Pacote *selecionados, int *count, float *valor_total) {
     // Alocação da matriz DP
-    float ***matriz = (float ***)malloc((m + 1) * sizeof(float **));
+    float ***dp = (float ***)malloc((m + 1) * sizeof(float **));
     for (int i = 0; i <= m; i++) {
-        matriz[i] = (float **)malloc((W + 1) * sizeof(float *));
-        for (int w = 0; w <= W; w++) {
-            matriz[i][w] = (float *)malloc((V + 1)* sizeof(float));
+        dp[i] = (float **)malloc((pesoMax + 1) * sizeof(float *));
+        for (int w = 0; w <= pesoMax; w++) {
+            dp[i][w] = (float *)calloc((volumeMax + 1), sizeof(float));
         }
     }
 
-    for (int i = 0; i <= m; i++) {
-        Pacote pacote = pacotes[i];
-        for (int w = 0; w <= W; w++) {
-            for (int v = 0; v <= V; v++) {
-                if (i == 0 || w == 0 || v == 0) {
-                    matriz[i][w][v] = 0;  
-                } else if (w < pacote.peso || v < pacote.volume || pacote.alocado) {
-                    matriz[i][w][v] = matriz[i - 1][w][v];  
+    // Preenchimento da matriz DP
+    for (int i = 1; i <= m; i++) {
+        Pacote p = pacotes[i - 1];
+        for (int w = 0; w <= pesoMax; w++) {
+            for (int v = 0; v <= volumeMax; v++) {
+                if (p.peso <= w && p.volume <= v && !p.alocado) {
+                    dp[i][w][v] = fmax(dp[i - 1][w][v], dp[i - 1][w - p.peso][v - p.volume] + p.valor);
                 } else {
-                    matriz[i][w][v] = max(matriz[i - 1][w][v],matriz[i - 1][w - pacote.peso][v - pacote.volume] + pacote.valor);
+                    dp[i][w][v] = dp[i - 1][w][v];
                 }
             }
         }
     }
 
-    
-
-    //Vai guargar o valor float(preço) mais eficiente
-    *valorTotal = matriz[m][W][V];
+    // Reconstrução da solução
+    *valor_total = dp[m][pesoMax][volumeMax];
     *count = 0;
-    int w = W, v = V;
-    for (int i = m;i > 0 && w > 0 && v > 0;i--) {
-        if (matriz[i][w][v] != matriz[i - 1][w][v]) {
-            selecionados[(*count)++] = pacotes[i];
-            pacotes[i].alocado = 1; // Marca o pacote como alocado
-            w -= pacotes[i].peso;
-            v -= pacotes[i].volume;
+    int w = pesoMax, v = volumeMax;
+    for (int i = m; i > 0 && w > 0 && v > 0; i--) {
+        if (dp[i][w][v] != dp[i - 1][w][v]) {
+            selecionados[(*count)++] = pacotes[i - 1];
+            pacotes[i - 1].alocado = 1; // Marca o pacote como alocado
+            w -= pacotes[i - 1].peso;
+            v -= pacotes[i - 1].volume;
         }
     }
 
     // Liberação da memória da matriz DP
     for (int i = 0; i <= m; i++) {
-        for (int w = 0; w <= W; w++) {
-            free(matriz[i][w]);
+        for (int w = 0; w <= pesoMax; w++) {
+            free(dp[i][w]);
         }
-        free(matriz[i]);
+        free(dp[i]);
     }
-    free(matriz);
+    free(dp);
 }
+
 
 // Função para imprimir pacotes não alocados
 void imprimir_pendentes(Pacote *pacotes, int m, FILE *saida) {
@@ -117,14 +107,14 @@ int main(int argc, char *argv[]) {
     fscanf(arquivo, "%d", &n);
     Veiculo *veiculos = malloc(n * sizeof(Veiculo));
     for (int i = 0; i < n; i++) {
-        fscanf(arquivo, "%s %d %d", veiculos[i].placa, &veiculos[i].W, &veiculos[i].V);
+        fscanf(arquivo, "%s %d %d", veiculos[i].placa, &veiculos[i].pesoMax, &veiculos[i].volumeMax);
     }
     
     fscanf(arquivo, "%d", &m);
     Pacote *pacotes = malloc(m * sizeof(Pacote));
     for (int i = 0; i < m; i++) {
         fscanf(arquivo, "%s %f %d %d", pacotes[i].codigo, &pacotes[i].valor, &pacotes[i].peso, &pacotes[i].volume);
-        pacotes[i].indice_original = i;
+        pacotes[i].indiceOriginal = i;
         pacotes[i].alocado = 0;
     }
     
@@ -133,17 +123,17 @@ int main(int argc, char *argv[]) {
         int count_selecionados = 0;
         float valor_total = 0;
 
-        otimizacaoVeiculos(pacotes, m, veiculos[i].W, veiculos[i].V, pacotes_selecionados, &count_selecionados, &valor_total);
+        mochila_3d(pacotes, m, veiculos[i].pesoMax, veiculos[i].volumeMax, pacotes_selecionados, &count_selecionados, &valor_total);
 
         qsort(pacotes_selecionados, count_selecionados, sizeof(Pacote), comparar_por_indice_original);
 
-        char pacotes_alocados[100000] = ""; // Ajuste o tamanho se necessário
+        char pacotes_alocados[100000] = "";
         for (int k = 0; k < count_selecionados; k++) {
             if (k > 0) strcat(pacotes_alocados, ",");
             strcat(pacotes_alocados, pacotes_selecionados[k].codigo);
         }
         
-        fprintf(saida, "[%s]R$%.2f,%dKG,%dL->%s\n", veiculos[i].placa, valor_total, veiculos[i].W, veiculos[i].V, pacotes_alocados);
+        fprintf(saida, "[%s]R$%.2f,%dKG,%dL->%s\n", veiculos[i].placa, valor_total, veiculos[i].pesoMax, veiculos[i].volumeMax, pacotes_alocados);
     }
     
     imprimir_pendentes(pacotes, m, saida);
