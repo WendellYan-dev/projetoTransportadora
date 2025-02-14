@@ -32,48 +32,53 @@ float max(float a, float b) {
     }
 }
 
-
 void selecionarMelhoresPacotes(Veiculo* veiculo, Pacote *pacotes, int numPacotes, int pesoMax, int volumeMax, Pacote *pacotesSelecionados, int *contSelecionados, float *valorTotal) {
-    float *alocacao = (float *)malloc((numPacotes + 1)*(pesoMax + 1)*(volumeMax +1)*sizeof(float));
+    float *alocacao = (float *)calloc((numPacotes + 1) * (pesoMax + 1) * (volumeMax + 1), sizeof(float));
     if (alocacao == NULL) {
-        printf("Erro");
+        printf("Erro de alocação de memória\n");
     }
 
-    float ***matriz = (float ***)malloc((numPacotes + 1)* sizeof(float **));
+    
+    float ***matriz = (float ***)malloc((numPacotes + 1) * sizeof(float **));
     if (matriz == NULL) {
-        printf("Erro");
+        free(alocacao);
+        printf("Erro de alocação de memória\n");
     }
 
     for (int i = 0; i <= numPacotes; i++) {
-        matriz[i] = (float **)malloc((pesoMax + 1)* sizeof(float *));
+        matriz[i] = (float **)malloc((pesoMax + 1) * sizeof(float *));
         if (matriz[i] == NULL) {
-            printf("ERRO"); 
+            
+            for (int j = 0; j < i; j++) free(matriz[j]);
+            free(matriz);
+            free(alocacao);
+            printf("Erro de alocação de memória\n");
         }
+
         for (int w = 0; w <= pesoMax; w++) {
-            matriz[i][w] = &alocacao[(i* (pesoMax + 1)*(volumeMax + 1))+(w * (volumeMax + 1))];
+            matriz[i][w] = &alocacao[i * (pesoMax + 1) * (volumeMax + 1) + w * (volumeMax + 1)];
         }
     }
 
-    //modifique com i=1,e w == 0 || v == 0
-
-    for (int i = 0; i <= numPacotes; i++) {
-        Pacote pacoteAtual = pacotes[i-1];
+    
+    for (int i = 1; i <= numPacotes; i++) {
+        Pacote pacoteAtual = pacotes[i - 1];
         for (int w = 0; w <= pesoMax; w++) {
             for (int v = 0; v <= volumeMax; v++) {
-                if(i == 0 || w == 0 || v == 0) {
-                    matriz[i][w][v] = 0;
-                } else if (pacoteAtual.peso <= w && pacoteAtual.volume <= v && !pacoteAtual.alocado) {
-                    matriz[i][w][v] = max(matriz[i - 1][w][v],matriz[i - 1][w - pacoteAtual.peso][v - pacoteAtual.volume] + pacoteAtual.valor);
-                    } else {
-                        matriz[i][w][v] = matriz[i - 1][w][v];
-                    }
+                if (pacoteAtual.peso <= w && pacoteAtual.volume <= v && !pacoteAtual.alocado) {
+                    matriz[i][w][v] = max(matriz[i - 1][w][v], matriz[i - 1][w - pacoteAtual.peso][v - pacoteAtual.volume] + pacoteAtual.valor);
+                } else {
+                    matriz[i][w][v] = matriz[i - 1][w][v];
+                }
             }
         }
     }
 
+    
     *valorTotal = matriz[numPacotes][pesoMax][volumeMax];
     *contSelecionados = 0;
 
+    
     int pesoRestante = pesoMax, volumeRestante = volumeMax;
     for (int i = numPacotes; i > 0 && pesoRestante > 0 && volumeRestante > 0; i--) {
         if (matriz[i][pesoRestante][volumeRestante] != matriz[i - 1][pesoRestante][volumeRestante]) {
@@ -86,10 +91,16 @@ void selecionarMelhoresPacotes(Veiculo* veiculo, Pacote *pacotes, int numPacotes
         }
     }
 
-    porcentagemPeso = round((float)(veiculo->pesoAcumulado* 100) / pesoMax);
-    porcentagemVolume = round((float)(veiculo->volumeAcumulado* 100) / volumeMax);
+    
+    porcentagemPeso = round((float)(veiculo->pesoAcumulado * 100) / pesoMax);
+    porcentagemVolume = round((float)(veiculo->volumeAcumulado * 100) / volumeMax);
 
     
+    for (int i = 0; i <= numPacotes; i++) {
+        free(matriz[i]);
+    }
+    free(matriz);
+    free(alocacao);
 }
 
 void imprimirPacotesPendentes(Pacote *pacotes, int numPacotes, FILE *arquivoSaida) {
@@ -122,7 +133,7 @@ int main(int argc, char *argv[]) {
     FILE* arquivoEntrada = fopen(argv[1], "r");
     FILE* arquivoSaida = fopen(argv[2], "w");
     if (!arquivoEntrada || !arquivoSaida) {
-        printf("ERRO: Não foi possível abrir os arquivos.\n");
+        printf("ERRO");
         return 1;
     }
 
